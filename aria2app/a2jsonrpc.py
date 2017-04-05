@@ -5,6 +5,9 @@
 
 import base64
 import logging
+import httplib
+import json
+import urllib2
 
 
 class Aria2JsonRpcError(Exception):
@@ -81,7 +84,9 @@ class Aria2JsonRcpClient():
         try:
             repjson = self._send_request(reqjson)
         except httplib.BadStatusLine as e:
-            raise Aria2JsonRpcError(str(e))      
+            raise Aria2JsonRpcError(str(e))
+        except urllib2.URLError as e:
+            raise Aria2JsonRpcError(str(e))
         
         # logging debug output
         if repjson is not None:
