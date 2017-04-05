@@ -7,7 +7,13 @@ import base64
 import logging
 import httplib
 import json
+import subprocess
+import sys
+import time
 import urllib2
+
+
+SERVER_URI_FORMAT = '{}://{}:{:d}/jsonrpc'
 
 
 class Aria2JsonRpcError(Exception):
@@ -15,22 +21,90 @@ class Aria2JsonRpcError(Exception):
     def __init__(self, msg):
         super(self.__class__, self).__init__(self, msg)
     
-class Aria2RpcServer(object):
+class Aria2JsonRpcServer(object):
     
     ''' Manage starting and stopping Aria2 RPC server. '''
-    def __init__(self, cmd, token, port, ID, a2jr_kwargs=None,
-                 timeout=10, scheme='http', host='localhost', nice=True, lock=None,
-                 quiet=True):        
-        pass
+    def __init__(self, token, timeout=30,
+                 scheme='http', host='localhost', port=6800, quiet=True):        
+        
+        self.cmd = ['aria2c']
+        self.token = token
+        self.timeout = timeout
+        self.scheme = scheme
+        self.host = host
+        self.port = port
+        self.quiet = quiet
+        self.process = None
+        self.client = None
+        
+        self.cmd.extend(('--enable-rpc',
+                         '--rpc-secret', token,
+                         '--rpc-listen-port', str(port)))
     
-    def start(self):
-        pass
-    
-    def stop(self):
-        pass
-    
+    def start(self, restart=False):
+        # logging info
+        
+        if self.process and self.client:
+            launched = True
+            try:
+                self.client.getVersion()
+            except Aria2JsonRpcError as e:
+                launched = False
+        else:
+            launched = False
+        
+        # need restart
+        if launched and restart:
+            self.stop()
+        elif launched:
+            return True
 
-class Aria2JsonRcpClient():
+        if self.quiet:
+            self.process = subprocess.Popen(self.cmd, stdout=file('/dev/null'))
+        else:
+            self.process = subprocess.Popen(self.cmd, stdout=sys.stderr)
+        print(self.process)
+        
+        uri = SERVER_URI_FORMAT.format(self.scheme, self.host, self.port)
+        self.client = Aria2JsonRpcClient('server', uri, token=self.token)
+        timeout = time.time() + self.timeout
+      
+        # Wait for the server to start listening.
+        while True:
+            try:
+                self.client.getVersion()
+            except Aria2JsonRpcError as e:                
+                time.sleep(1)
+                if time.time() > timeout:
+                    return False
+            else:
+                return True
+    
+    def stop(self, force=False):
+        # logging info
+        
+        if self.process is None:
+            return True
+        
+        self.client.shutdown()
+        time.sleep(5)
+        if force:
+            self.client.forceShutdown()
+        
+        try:
+            self.process.terminate()
+            self.process.kill()
+            exit_code = self.process.wait()
+        except:
+            # logging error
+            pass
+        
+        # logging info
+        self.process = None
+
+        return True
+
+class Aria2JsonRpcClient():
     '''
       Client class for interacting with Aria2 RPC server.
     '''

@@ -13,7 +13,7 @@ def main(args=None):
     uri = "http://localhost:6800/jsonrpc"
     token = '11111111'
   
-    ajclient = a2jsonrpc.Aria2JsonRcpClient('test', uri, token)
+    ajclient = a2jsonrpc.Aria2JsonRpcClient('test', uri, token)
 
     version = ajclient.getVersion()
     print('version: {}'.format(version['version']))
