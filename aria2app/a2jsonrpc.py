@@ -36,10 +36,12 @@ class Aria2JsonRpcServer(object):
         self.quiet = quiet
         self.process = None
         self.client = None
+    
+    def setextendcmd(self, cmdpara):
+        self.cmd.extend(cmdpara)
         
-        self.cmd.extend(('--enable-rpc',
-                         '--rpc-secret', token,
-                         '--rpc-listen-port', str(port)))
+    def getallcmd(self):
+        return self.cmd
     
     def start(self, restart=False):
         # logging info
